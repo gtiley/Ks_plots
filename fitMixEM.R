@@ -1,15 +1,16 @@
 ##################################################################
-# George P. Tiley - gtiley@ufl.edu
-# 20151107
+# George P. Tiley - george.tiley@duke.edu
+# 20170917
 # Code borrowed extensively from source code by Sally Otto (unpublished)
 # and mixtools R package (Tatiana Benaglia, Didier Chauveau, David R. Hunter, Derek Young (2009). mixtools: An R Package for Analyzing Finite Mixture Models. Journal of Statistical Software, 32(6), 1-29. URL http://www.jstatsoft.org/v32/i06/.)
-# 20160330
 ##################################################################
 ##################################################################
 #model 1 = exp + (k-1) normals
 #model 2 = exp + (k-1) gammas
-#model 3 = k normals
-#model 4 = k gammas
+#model 3 = exp + (k-1) lognormals
+#model 4 = k normals
+#model 5 = k gammas
+#model 6 = k lognormals
 ##################################################################
 
 ##########################################################################################
@@ -92,6 +93,7 @@ initMix <- function(x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model
 		    	}
 			}
 		}
+		
 		if (model == 2)
 		{
 			if (k == 1) #fit a single exponential
@@ -167,6 +169,105 @@ initMix <- function(x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model
 			if (k == 1) #fit a single exponential
 	    	{
     			x.bar=mean(x)
+				alpha = 1
+				beta = x.bar
+				lambda = 1
+#			cat ("starting params:", lambda, "\t", alpha, "\t", beta, "\n")
+	    	}
+		    else
+    		{
+	    		if (is.null(lambda))
+    			{
+	    			lambda = runif(k)
+		    	    lambda = lambda/sum(lambda)
+    				x.sort=sort(x)
+					ind=floor(n*cumsum(lambda))
+					x.part=list()
+					x.part[[1]]=x.sort[1:(ind[1]+1)]
+					for(j in 2:k)
+					{
+						x.part[[j]]=x.sort[ind[j-1]:ind[j]]
+					}
+					x.bar=sapply(x.part,mean)
+					logx=sapply(x.part,log)
+					logx.bar=sapply(logx,mean)
+					#Need to get log squared differences from the mean
+					logsqd=list()
+					logsqd[[1]] <- 1
+					for(j in 1:k)
+					{
+						logsqd[[j]] <- 1
+						for (w in 1:length(logx[[j]]))
+						{
+							logsqd[[j]][w] = (logx[[j]][w] - logx.bar[j])^2
+						} 
+					}
+					#
+					logvar.bar=sapply(logsqd,mean)
+					sdlog.bar=sapply(logvar.bar,sqrt)
+	    			if(is.null(alpha))
+				    {
+						alpha=logx.bar
+						alpha[1] = 1
+#						cat ("Checking starting alphas:\t", alpha, "\n")
+				    }
+					if(is.null(beta))
+				    {
+						beta=sdlog.bar
+						beta[1] = x.bar[1]
+#						cat ("Checking starting betas:\t", beta, "\n")
+						
+		    		}
+			    }
+			    else
+			    {
+			    	x.sort=sort(x)
+					ind=floor(n*cumsum(lambda))
+					x.part=list()
+					x.part[[1]]=x.sort[1:(ind[1]+1)]
+					for(j in 2:k)
+					{
+						x.part[[j]]=x.sort[ind[j-1]:ind[j]]
+					}
+					x.bar=sapply(x.part,mean)
+					logx=sapply(x.part,log)
+					logx.bar=sapply(logx,mean)
+					#Need to get log squared differences from the mean
+					logsqd=list()
+					logsqd[[1]] <- 1
+					for(j in 1:k)
+					{
+						logsqd[[j]] <- 1
+						for (w in 1:length(logx[[j]]))
+						{
+							logsqd[[j]][w] = (logx[[j]][w] - logx.bar[j])^2
+						} 
+					}
+					#
+					logvar.bar=sapply(logsqd,mean)
+					sdlog.bar=sapply(logvar.bar,sqrt)
+	    			if(is.null(alpha))
+				    {
+						alpha=logx.bar
+						alpha[1] = 1
+#						cat ("Checking starting alphas:\t", alpha, "\n")
+				    }
+					if(is.null(beta))
+				    {
+						beta=sdlog.bar
+						beta[1] = x.bar[1]
+#						cat ("Checking starting betas:\t", beta, "\n")
+						
+		    		}
+		    	}
+			}
+		}
+		
+		if (model == 4)
+		{
+			if (k == 1) #fit a single normal
+	    	{
+    			x.bar=mean(x)
     			x.sd=sd(x)
 				alpha = x.bar
 				beta = x.sd
@@ -225,9 +326,9 @@ initMix <- function(x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model
 			   	}	
 			}
 		}	
-		if (model == 4)
+		if (model == 5)
 		{
-			if (k==1)
+			if (k==1) # fit a single gamma
 			{
 				x.bar = mean(x)
 				x2.bar = mean(x * x)
@@ -291,6 +392,105 @@ initMix <- function(x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model
 			    	}
 		    	}
 			}	
+		}
+	}
+	
+	if (model == 6)
+	{
+		if (k == 1) #fit a single lognormal
+	   	{
+	   		logx=log(x)
+	   		logx.bar=mean(logx)
+	   		logsqd=c()
+	   		for (w in 1:length(logx))
+			{
+	   			logsqd[w] = (logx[w] - logx.bar)^2
+	   		}
+	   		logvar.bar=mean(logsqd)
+			sdlog.bar=sqrt(logvar.bar)
+			alpha = logx.bar
+			beta = sdlog.bar
+			lambda = 1
+#			cat ("starting params:", lambda, "\t", alpha, "\t", beta, "\n")
+	   	}
+		else
+    	{
+	    	if (is.null(lambda))
+    		{
+	    		lambda = runif(k)
+		    	lambda = lambda/sum(lambda)
+    			x.sort=sort(x)
+				ind=floor(n*cumsum(lambda))
+				x.part=list()
+				x.part[[1]]=x.sort[1:(ind[1]+1)]
+				for(j in 2:k)
+				{
+					x.part[[j]]=x.sort[ind[j-1]:ind[j]]
+				}
+				logx=sapply(x.part,log)
+				logx.bar=sapply(logx,mean)
+				#Need to get log squared differences from the mean
+				logsqd=list()
+				logsqd[[1]] <- 1
+				for(j in 1:k)
+				{
+					logsqd[[j]] <- 1
+					for (w in 1:length(logx[[j]]))
+					{
+						logsqd[[j]][w] = (logx[[j]][w] - logx.bar[j])^2
+					} 
+				}
+				#
+				logvar.bar=sapply(logsqd,mean)
+				sdlog.bar=sapply(logvar.bar,sqrt)
+	    		if(is.null(alpha))
+				{
+					alpha=logx.bar
+#					cat ("Checking starting alphas:\t", alpha, "\n")
+				}
+				if(is.null(beta))
+				{
+					beta=sdlog.bar
+#					cat ("Checking starting betas:\t", beta, "\n")	
+		    	}
+		    }
+		    else
+		    {
+		    	x.sort=sort(x)
+				ind=floor(n*cumsum(lambda))
+				x.part=list()
+				x.part[[1]]=x.sort[1:(ind[1]+1)]
+				for(j in 2:k)
+				{
+					x.part[[j]]=x.sort[ind[j-1]:ind[j]]
+				}
+				logx=sapply(x.part,log)
+				logx.bar=sapply(logx,mean)
+				#Need to get log squared differences from the mean
+				logsqd=list()
+				logsqd[[1]] <- 1
+				for(j in 1:k)
+				{
+					logsqd[[j]] <- 1
+					for (w in 1:length(logx[[j]]))
+					{
+						logsqd[[j]][w] = (logx[[j]][w] - logx.bar[j])^2
+					} 
+				}
+				#
+				logvar.bar=sapply(logsqd,mean)
+				sdlog.bar=sapply(logvar.bar,sqrt)
+	    		if(is.null(alpha))
+				{
+					alpha=logx.bar
+#					cat ("Checking starting alphas:\t", alpha, "\n")
+				}
+				if(is.null(beta))
+				{
+					beta=sdlog.bar
+#					cat ("Checking starting betas:\t", beta, "\n")	
+		    	}
+	    	}
 		}
 	}
 	list(lambda=lambda, alpha=alpha, beta=beta, k=k)
@@ -397,6 +597,38 @@ mixEM <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model 
 			}
 		}
 		if (model == 3)
+		{	
+			dens <- NULL
+			dens <- function(lambda, theta, k)
+			{
+				alpha=theta[1:k]
+				beta=theta[(k+1):(2*k)]
+				psum = 0
+				temp<-NULL			
+				for(j in 1:k)
+				{
+					if (j == 1)
+					{
+						temp=cbind(temp,dexp(x,rate = 1/beta[j])) 
+					}
+					if (j > 1)
+					{
+						temp=cbind(temp,dlnorm(x, meanlog = alpha[j], sdlog = beta[j])) 
+					} 
+					if (j < k)
+					{
+						psum = psum + lambda[j]
+					}
+					if (j == k)
+					{
+						lambda[j] = (1 - psum)
+					}
+				}
+				temp=t(lambda*t(temp))
+				temp			
+			}
+		}
+		if (model == 4)
 		{
 			dens <- NULL
 			dens <- function(lambda, theta, k)
@@ -421,7 +653,7 @@ mixEM <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model 
 				temp			
 			}	
 		}
-		if (model == 4)
+		if (model == 5)
 		{	
 			dens <- NULL
 			dens <- function(lambda, theta, k)
@@ -433,6 +665,31 @@ mixEM <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model 
 				for(j in 1:k)
 				{
 					temp=cbind(temp,dgamma(x, shape = alpha[j], scale = 1/beta[j])) 
+					if (j < k)
+					{
+						psum = psum + lambda[j]
+					}
+					if (j == k)
+					{
+						lambda[j] = (1 - psum)
+					}
+				}
+				temp=t(lambda*t(temp))
+				temp			
+			}
+		}
+		if (model == 6)
+		{	
+			dens <- NULL
+			dens <- function(lambda, theta, k)
+			{
+				alpha=theta[1:k]
+				beta=theta[(k+1):(2*k)]
+				psum = 0
+				temp<-NULL			
+				for(j in 1:k)
+				{
+					temp=cbind(temp,dlnorm(x, meanlog = alpha[j], sdlog = beta[j])) 
 					if (j < k)
 					{
 						psum = psum + lambda[j]
@@ -633,6 +890,38 @@ fitMix <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model
 			}
 		}
 		if (model == 3)
+		{	
+			dens <- NULL
+			dens <- function(lambda, theta, k)
+			{
+				alpha=theta[1:k]
+				beta=theta[(k+1):(2*k)]
+				psum = 0
+				temp<-NULL			
+				for(j in 1:k)
+				{
+					if (j == 1)
+					{
+						temp=cbind(temp,dexp(x,rate = 1/beta[j])) 
+					}
+					if (j > 1)
+					{
+						temp=cbind(temp,dlnorm(x, meanlog = alpha[j], sdlog = beta[j])) 
+					} 
+					if (j < k)
+					{
+						psum = psum + lambda[j]
+					}
+					if (j == k)
+					{
+						lambda[j] = (1 - psum)
+					}
+				}
+				temp=t(lambda*t(temp))
+				temp			
+			}
+		}	
+		if (model == 4)
 		{
 			dens <- NULL
 			dens <- function(lambda, theta, k)
@@ -657,7 +946,7 @@ fitMix <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model
 				temp			
 			}	
 		}
-		if (model == 4)
+		if (model == 5)
 		{	
 			dens <- NULL
 			dens <- function(lambda, theta, k)
@@ -669,6 +958,31 @@ fitMix <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model
 				for(j in 1:k)
 				{
 					temp=cbind(temp,dgamma(x, shape = alpha[j], scale = 1/beta[j])) 
+					if (j < k)
+					{
+						psum = psum + lambda[j]
+					}
+					if (j == k)
+					{
+						lambda[j] = (1 - psum)
+					}
+				}
+				temp=t(lambda*t(temp))
+				temp			
+			}
+		}
+		if (model == 6)
+		{	
+			dens <- NULL
+			dens <- function(lambda, theta, k)
+			{
+				alpha=theta[1:k]
+				beta=theta[(k+1):(2*k)]
+				psum = 0
+				temp<-NULL			
+				for(j in 1:k)
+				{
+					temp=cbind(temp,dlnorm(x, meanlog = alpha[j], sdlog = beta[j])) 
 					if (j < k)
 					{
 						psum = psum + lambda[j]
@@ -794,6 +1108,38 @@ fitComponents <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL
 				}
 			}
 			if (model == 3)
+			{	
+				dens <- NULL
+				dens <- function(lambda, theta, k)
+				{
+					alpha=theta[1:k]
+					beta=theta[(k+1):(2*k)]
+					psum = 0
+					temp<-NULL			
+					for(j in 1:k)
+					{
+						if (j == 1)
+						{
+							temp=cbind(temp,dexp(x,rate = 1/beta[j])) 
+						}
+						if (j > 1)
+						{
+							temp=cbind(temp,dlnorm(x, meanlog = alpha[j], sdlog = beta[j])) 
+						} 
+						if (j < k)
+						{
+							psum = psum + lambda[j]
+						}
+						if (j == k)
+						{
+							lambda[j] = (1 - psum)
+						}
+					}
+					temp=t(lambda*t(temp))
+					temp			
+				}
+			}
+			if (model == 4)
 			{
 				dens <- NULL
 				dens <- function(lambda, theta, k)
@@ -818,7 +1164,7 @@ fitComponents <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL
 					temp			
 				}	
 			}
-			if (model == 4)
+			if (model == 5)
 			{	
 				dens <- NULL
 				dens <- function(lambda, theta, k)
@@ -830,6 +1176,31 @@ fitComponents <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL
 					for(j in 1:k)
 					{
 						temp=cbind(temp,dgamma(x, shape = alpha[j], scale = 1/beta[j])) 
+						if (j < k)
+						{
+							psum = psum + lambda[j]
+						}
+						if (j == k)
+						{
+							lambda[j] = (1 - psum)
+						}
+					}
+					temp=t(lambda*t(temp))
+					temp			
+				}
+			}
+			if (model == 6)
+			{	
+				dens <- NULL
+				dens <- function(lambda, theta, k)
+				{
+					alpha=theta[1:k]
+					beta=theta[(k+1):(2*k)]
+					psum = 0
+					temp<-NULL			
+					for(j in 1:k)
+					{
+						temp=cbind(temp,dlnorm(x, meanlog = alpha[j], sdlog = beta[j])) 
 						if (j < k)
 						{
 							psum = psum + lambda[j]
