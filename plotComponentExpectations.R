@@ -159,8 +159,8 @@ plotComponents <- function (x, lambda, params, xlim = NULL, ylim = NULL, xlab= N
 			ylim = c(0,Denmax)	
 		}
 			
-### Now actually begin the plotting		
-		hist (x, breaks=100, col="royalblue2", xlim=xlim,ylim=ylim,xlab=xlab,ylab=ylab,main=main,prob=TRUE)
+### Now actually begin the plotting
+		hist (x, breaks=seq(0.0-0.05,max(x)+0.05,by=0.05), col="royalblue2", xlim=xlim,ylim=ylim,xlab=xlab,ylab=ylab,main=main,prob=TRUE)
 
 		for (i in 1:k)
 		{
@@ -212,7 +212,7 @@ plotComponents <- function (x, lambda, params, xlim = NULL, ylim = NULL, xlab= N
 					theoreticalData <- rlnorm(round(lambda[i] * n), meanlog = alpha[i], sdlog = beta[i])
 					theoreticalDensity <- dlnorm(theoreticalData, meanlog = alpha[i], sdlog = beta[i])
 					lines(smooth.spline(theoreticalData, theoreticalDensity))
-					segments(exp(alpha[i]),0,exp(alpha[i]),dlnorm(alpha[i], meanlog = alpha[i], sdlog = beta[i]),col="firebrick",lwd=2)
+					segments(exp(alpha[i]),0,exp(alpha[i]),dlnorm(exp(alpha[i]), meanlog = alpha[i], sdlog = beta[i]),col="firebrick",lwd=2)
 				}
 			}
 			
@@ -238,7 +238,7 @@ plotComponents <- function (x, lambda, params, xlim = NULL, ylim = NULL, xlab= N
 				theoreticalData <- rlnorm(round(lambda[i] * n), meanlog = alpha[i], sdlog = beta[i])
 				theoreticalDensity <- dlnorm(theoreticalData, meanlog = alpha[i], sdlog = beta[i])
 				lines(smooth.spline(theoreticalData, theoreticalDensity))
-				segments(exp(alpha[i]),0,exp(alpha[i]),dlnorm(alpha[i], meanlog = alpha[i], sdlog = beta[i]),col="firebrick",lwd=2)
+				segments(exp(alpha[i]),0,exp(alpha[i]),dlnorm(exp(alpha[i]), meanlog = alpha[i], sdlog = beta[i]),col="firebrick",lwd=2)
 			}			
 		}
 	}
