@@ -1,13 +1,24 @@
-# Ks_plots
+## Ks_plots
 R functions for Ks plot analyses with mixture models
 
-There are 6 model types available to use for mixture model analyses
-model 1 = exp + (k-1) normals
-model 2 = exp + (k-1) gammas
-model 3 = exp + (k-1) lognormals
-model 4 = k normals
-model 5 = k gammas
-model 6 = k lognormals
+### Updated 13 February 2022
+
+Some bits of code were adapted to create the new functions `ploidy.test()` and `onlyVariances()`. These are used to evaluate the ploidy level of an individual based on distributions of allele balance from genotyping data. The ideas were similar enough to leverage the same mixture model optimization routines.  However, for ploidy, there are clear expectations for the mixing proportions and means. These are fixed on only the variances are optimized.
+
+Any model with a weight greater than 0.5 is returned as the best ploidy level for that individual. If the results are ambiguous, with no model weight > 0.5, a ploidy level of 2 is returned by default and a warning provided in the output.
+
+Only ploidy levels up to 8 are supported, and perhaps it is dubious to go even beyond 6. 
+
+
+### Functionality prior to 13 February 2022
+
+There are 6 model types available to use for mixture model analyses:
+* model 1 = exp + (k-1) normals
+* model 2 = exp + (k-1) gammas
+* model 3 = exp + (k-1) lognormals
+* model 4 = k normals
+* model 5 = k gammas
+* model 6 = k lognormals
 
 Once the R source code is loaded, perhaps the function of most interest is
 mixEM <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model = 1, nstarts = 100, epsilon = 1e-08, maxit = 1000, maxrestarts=20, verb=0)

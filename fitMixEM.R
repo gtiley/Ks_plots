@@ -1,8 +1,10 @@
 ##################################################################
-# George P. Tiley - george.tiley@duke.edu
+# George P. Tiley - g.tiley@kew.org
 # 20170917
 # Code borrowed extensively from source code by Sally Otto (unpublished)
 # and mixtools R package (Tatiana Benaglia, Didier Chauveau, David R. Hunter, Derek Young (2009). mixtools: An R Package for Analyzing Finite Mixture Models. Journal of Statistical Software, 32(6), 1-29. URL http://www.jstatsoft.org/v32/i06/.)
+# 20220211
+# Included new function to estimate variances and lnL with fixed proportions and means for ploidy estimation
 ##################################################################
 ##################################################################
 #model 1 = exp + (k-1) normals
@@ -1295,6 +1297,184 @@ fitComponents <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL
 		    if (check == 0)
 		    {
 			    cat("number of iterations=", iter, "\n")
+				theta=rbind(alpha,beta)
+				rownames(theta)=c("alpha","beta")
+				colnames(theta)=c(paste("comp", ".", 1:k, sep = ""))
+	    		a=list(x=x, lambda = lambda, parameters = theta, loglik = new.obs.ll, posterior = z, all.loglik=ll, ft="mixEM")
+				class(a) = "mixEM"
+			    if (new.obs.ll > bestlnL && is.finite(new.obs.ll) == TRUE)
+				{
+    				bestlnL = new.obs.ll
+				    result = list(x=x, lambda = lambda, parameters = theta, loglik = new.obs.ll, posterior = z, all.loglik=ll, ft="mixEM")
+		   		}
+		   	}	
+		}
+		result
+	}	
+}
+
+##########################################################################################
+# fixComponents() - calculate lnL for mixture models with fixed lambda, but free alphas/betas
+#
+#
+##########################################################################################	
+onlyVariances <- function (x, lambda = NULL, alpha = NULL, beta = NULL, k = NULL, model = 1, nstarts = 100, epsilon = 1e-08, maxit = 1000, maxrestarts=20, verb=0)
+{
+	if (is.null(k) | is.null(lambda) | is.null(model) | is.null(alpha)) 
+    {
+    	stop("The fixed component proportions must be defined with lambda=c(p1,p2,...,pn)\nThe fixed component means should be defined alpha=c(m1,m2,...,mn)\n\n")
+ 	}
+ 	if (model == 1 | model == 2 | model == 3 | model == 5)
+ 	{
+ 		stop("The partial optimization of variances only works for models 4 and 6\n")
+ 	}
+ 	else
+ 	{
+ 		bestlnL = -1000000000
+ 		w=0;
+ 		if (model == 6)
+ 		{
+ 			alpha = log(alpha)
+ 		}
+		for (w in 1:nstarts)
+		{
+		
+			check = 0
+			
+			x <- as.vector(x)
+			lambda = lambda
+			alpha = alpha
+			beta = NULL
+			tmp <- initMix(x = x, lambda = lambda, alpha=alpha, beta=beta, k=k, model=model)
+			beta <- tmp$beta
+			theta <- c(alpha, beta)
+			k <- tmp$k 	
+			iter <- 0
+			mr <- 0
+			diff <- epsilon+1
+			n <- length(x)
+ 	
+			if (model == 4)
+			{
+				dens <- NULL
+				dens <- function(lambda, theta, k)
+				{
+					alpha=theta[1:k]
+					beta=theta[(k+1):(2*k)]
+					psum = 0
+					temp<-NULL			
+					for(j in 1:k)
+					{
+						temp=cbind(temp,dnorm(x, mean = alpha[j], sd = beta[j])) 
+						if (j < k)
+						{
+							psum = psum + lambda[j]
+						}
+						if (j == k)
+						{
+							lambda[j] = (1 - psum)
+						}
+					}
+					temp=t(lambda*t(temp))
+					temp			
+				}	
+			}
+			if (model == 6)
+			{	
+				dens <- NULL
+				dens <- function(lambda, theta, k)
+				{
+					alpha=theta[1:k]
+					beta=theta[(k+1):(2*k)]
+					psum = 0
+					temp<-NULL			
+					for(j in 1:k)
+					{
+						temp=cbind(temp,dlnorm(x, meanlog = alpha[j], sdlog = beta[j])) 
+						if (j < k)
+						{
+							psum = psum + lambda[j]
+						}
+						if (j == k)
+						{
+							lambda[j] = (1 - psum)
+						}
+					}
+					temp=t(lambda*t(temp))
+					temp			
+				}
+			}
+
+			old.obs.ll <- sum(log(apply(dens(lambda, theta, k),1,sum)))
+			ll <- old.obs.ll	
+			
+			model.ll <- function(theta,z,lambda,k) 
+			{
+				-sum(z*log(dens(lambda,theta,k)))
+			}
+	
+			while(diff > epsilon && iter < maxit && check == 0 && is.na(diff)==FALSE)
+			{
+#update probabilities from previous optimization		
+				dens1=dens(lambda,theta,k)
+				z=dens1/apply(dens1,1,sum)
+############
+#Don't need to update lambda for this optimization, fixed in this function
+#				lambda.hat=apply(z,2,mean)
+				
+#nlm -> newtonian minimization with full-blown 2nd order partials; set Hessian = TRUE for quasi-newton
+				out=try(suppressWarnings(nlm(model.ll,p=theta,lambda=lambda,k=k,z=z)),silent=FALSE)
+				if(class(out)=="try-error")
+				{
+				
+					if(mr==maxrestarts) 
+					{
+						check = 1
+					}
+
+					mr <- mr+1
+					for (i in 1:k)
+					{
+						beta[i] = beta[i] + 0.05
+					}
+	  				theta <- c(alpha,beta)
+	  				iter <- 0
+	 				diff <- epsilon+1
+					old.obs.ll <- sum(log(apply(dens(lambda, theta, k),1,sum)))
+   					ll <- old.obs.ll
+				} 
+	  			else
+		  		{
+					theta.hat=out$estimate
+					alpha.hat=theta.hat[1:k]
+					beta.hat=theta.hat[(k+1):(2*k)]
+					alpha.hat = alpha
+					theta.hat = c(alpha,beta.hat)
+					new.obs.ll <- sum(log(apply(dens(lambda, theta.hat, k),1,sum)))
+					diff <- new.obs.ll-old.obs.ll
+					old.obs.ll <- new.obs.ll
+					ll <- c(ll,old.obs.ll)
+#				lambda=lambda.hat
+					theta=theta.hat
+#					alpha=alpha.hat
+					beta=beta.hat
+					iter=iter+1
+        			if (verb == 1) 
+		       		{
+    		       		cat("iteration =", iter, " log-lik diff =", diff, " log-lik =", new.obs.ll, "\n")
+    		       		cat("#=====Parameter Estimates=====#\nlambda:\t", lambda, "\nalpha:\t", alpha, "\nbeta:\t", beta, "\n#============================#\n")
+	       		  	}	   	
+				}
+    		}
+# print optimized values/ save to object
+			if (iter == maxit) 
+		    {
+    		   	cat("WARNING! NOT CONVERGENT!", "\n")
+		    }
+		    
+		    if (check == 0)
+		    {
+#			    cat("number of iterations=", iter, "\n")
 				theta=rbind(alpha,beta)
 				rownames(theta)=c("alpha","beta")
 				colnames(theta)=c(paste("comp", ".", 1:k, sep = ""))
